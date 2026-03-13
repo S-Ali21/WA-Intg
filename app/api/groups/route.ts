@@ -1,0 +1,153 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/db';
+import { checkGroupsLimit } from '@/lib/plan-limits';
+
+/**
+ * GET - Fetch all groups for the authenticated user
+ */
+export async function GET() {
+  try {
+    // Verify user authentication
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Get groups with member counts using Prisma
+    const groups = await prisma.chatGroup.findMany({
+      where: {
+        ownerId: userId,
+      },
+      include: {
+        _count: {
+          select: {
+            members: true,
+          },
+        },
+        members: {
+          include: {
+            contact: {
+              select: {
+                id: true,
+                phoneNumber: true,
+                customName: true,
+                whatsappName: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    // Format the response to match the expected structure
+    const formattedGroups = groups.map((group: typeof groups[0]) => ({
+      id: group.id,
+      name: group.name,
+      description: group.description,
+      created_at: group.createdAt,
+      updated_at: group.updatedAt,
+      owner_id: group.ownerId,
+      member_count: group._count.members,
+      members: group.members.map((member: typeof group.members[0]) => ({
+        id: member.id,
+        contact_id: member.contactId,
+        added_at: member.addedAt,
+        contact: member.contact,
+      })),
+    }));
+
+    return NextResponse.json({
+      success: true,
+      groups: formattedGroups,
+    });
+
+  } catch (error: unknown) {
+    console.error('Error in groups API:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST - Create a new group
+ */
+export async function POST(request: NextRequest) {
+  try {
+    // Verify user authentication
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { name, description, memberIds } = body;
+
+    // Validate input
+    if (!name || !name.trim()) {
+      return NextResponse.json(
+        { error: 'Group name is required' },
+        { status: 400 }
+      );
+    }
+
+    // Check groups limit
+    const groupCheck = await checkGroupsLimit(userId);
+    if (!groupCheck.allowed) {
+      return NextResponse.json(
+        { error: `Groups limit reached (${groupCheck.current}/${groupCheck.limit}). Upgrade your plan to create more groups.` },
+        { status: 403 }
+      );
+    }
+
+    // Create the group with members in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the group
+      const group = await tx.chatGroup.create({
+        data: {
+          ownerId: userId,
+          name: name.trim(),
+          description: description?.trim() || null,
+        },
+      });
+
+      // Add members if provided
+      if (memberIds && Array.isArray(memberIds) && memberIds.length > 0) {
+        await tx.groupMember.createMany({
+          data: memberIds.map((contactId: string) => ({
+            groupId: group.id,
+            contactId: contactId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      return group;
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Group created successfully',
+      group: result,
+    });
+
+  } catch (error: unknown) {
+    console.error('Error creating broadcast group:', error);
+    return NextResponse.json(
+      { error: 'Failed to create broadcast group' },
+      { status: 500 }
+    );
+  }
+}
+
