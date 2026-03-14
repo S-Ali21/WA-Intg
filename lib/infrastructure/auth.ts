@@ -19,18 +19,32 @@ export const authService = {
   async syncUser(userId: string) {
     const user = await (await clerkClient()).users.getUser(userId)
     
-    return await prisma.user.upsert({
-      where: { clerkId: userId },
+    // Sync User base record
+    const userRecord = await prisma.user.upsert({
+      where: { id: userId },
       update: {
-        email: user.emailAddresses[0]?.emailAddress,
-        name: `${user.firstName} ${user.lastName}`.trim(),
+        isActive: true,
       },
       create: {
-        clerkId: userId,
-        email: user.emailAddresses[0]?.emailAddress || "",
-        name: `${user.firstName} ${user.lastName}`.trim() || "User",
+        id: userId,
+        isActive: true,
       },
     })
+
+    // Optionally sync UserSettings for profile info
+    await prisma.userSettings.upsert({
+      where: { id: userId },
+      update: {
+        fullName: `${user.firstName} ${user.lastName}`.trim(),
+      },
+      create: {
+        id: userId,
+        fullName: `${user.firstName} ${user.lastName}`.trim() || "User",
+        apiVersion: "v23.0",
+      }
+    })
+
+    return userRecord
   },
 
   /** Check if user has specific permission or role */

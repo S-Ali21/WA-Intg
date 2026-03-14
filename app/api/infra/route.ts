@@ -50,7 +50,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, user })
         
       case "get_storage_url":
-        const url = await infra.storage.getAccessUrl(payload.key)
+        const url = await infra.storage.getAccessUrlByKey(payload.key)
         return NextResponse.json({ success: true, url })
 
       default:

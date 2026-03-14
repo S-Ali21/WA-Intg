@@ -20,7 +20,7 @@ export const paymentService = {
     return await prisma.subscription.findFirst({
       where: {
         userId,
-        status: "active",
+        status: "ACTIVE",
       },
       orderBy: { createdAt: "desc" },
     })

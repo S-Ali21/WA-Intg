@@ -2,6 +2,7 @@ import prisma from "@/lib/db"
 import { authService } from "./auth"
 import { storageService } from "./storage"
 import { paymentService } from "./payments"
+import { whatsappService } from "./whatsapp"
 
 /**
  * Universal Infrastructure Layer (UIL)
@@ -20,6 +21,9 @@ export const infra = {
   /** Billing & Subscriptions (Razorpay) */
   payments: paymentService,
   
+  /** WhatsApp Cloud API */
+  whatsapp: whatsappService,
+  
   /** Health Check & Status */
   async getStatus() {
     return {
@@ -27,6 +31,7 @@ export const infra = {
       db: "ready",
       storage: process.env.AWS_BUCKET_NAME ? "configured" : "missing",
       payments: process.env.RAZORPAY_KEY_ID ? "configured" : "missing",
+      whatsapp: process.env.WHATSAPP_PHONE_NUMBER_ID ? "configured" : "missing",
       timestamp: new Date().toISOString()
     }
   }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useAuth, UserButton } from "@clerk/nextjs";
+import { UserButton, Show, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Menu, X, Github } from "lucide-react";
@@ -14,7 +14,6 @@ const navLinks = [
 ];
 
 export function Navbar() {
-  const { isSignedIn, isLoaded } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -51,25 +50,28 @@ export function Navbar() {
         {/* Desktop actions */}
         <div className="hidden md:flex items-center gap-3">
           <ThemeSwitcher />
-          {isLoaded && isSignedIn ? (
+          
+          <Show when="signed-in">
             <div className="flex items-center gap-3">
               <Link href="/protected">
                 <Button size="sm">Dashboard</Button>
               </Link>
               <UserButton />
             </div>
-          ) : (
+          </Show>
+
+          <Show when="signed-out">
             <div className="flex items-center gap-2">
-              <Link href="/sign-in">
+              <SignInButton mode="modal">
                 <Button variant="ghost" size="sm">
                   Sign in
                 </Button>
-              </Link>
-              <Link href="/sign-up">
+              </SignInButton>
+              <SignUpButton mode="modal">
                 <Button size="sm">Get Started</Button>
-              </Link>
+              </SignUpButton>
             </div>
-          )}
+          </Show>
         </div>
 
         {/* Mobile actions */}
@@ -91,7 +93,7 @@ export function Navbar() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t bg-background/95 backdrop-blur-xl px-4 py-3 space-y-1">
+        <div className="md:hidden border-t bg-background/95 backdrop-blur-xl px-4 py-3 space-y-1 mt-4 rounded-2xl overflow-hidden shadow-2xl border border-white/10">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -113,34 +115,31 @@ export function Navbar() {
             GitHub
           </a>
           <div className="pt-3 border-t mt-2 space-y-2">
-            {isLoaded && isSignedIn ? (
-              <Link href="/protected" onClick={() => setMobileOpen(false)}>
+            <Show when="signed-in">
+              <Link href="/protected" className="block" onClick={() => setMobileOpen(false)}>
                 <Button size="sm" className="w-full">
                   Dashboard
                 </Button>
               </Link>
-            ) : (
-              <div className="flex gap-2">
-                <Link
-                  href="/sign-in"
-                  className="flex-1"
-                  onClick={() => setMobileOpen(false)}
-                >
+              <div className="flex justify-center py-2">
+                 <UserButton />
+              </div>
+            </Show>
+
+            <Show when="signed-out">
+              <div className="flex flex-col gap-2">
+                <SignInButton mode="modal">
                   <Button variant="outline" size="sm" className="w-full">
                     Sign in
                   </Button>
-                </Link>
-                <Link
-                  href="/sign-up"
-                  className="flex-1"
-                  onClick={() => setMobileOpen(false)}
-                >
+                </SignInButton>
+                <SignUpButton mode="modal">
                   <Button size="sm" className="w-full">
                     Get Started
                   </Button>
-                </Link>
+                </SignUpButton>
               </div>
-            )}
+            </Show>
           </div>
         </div>
       )}
